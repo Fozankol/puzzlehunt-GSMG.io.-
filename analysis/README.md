@@ -12,10 +12,12 @@ guessed tokens or on the fake artifact.
 ## Contents
 
 - [Quick start](#quick-start)
+- [Is the prize still claimable?](#is-the-prize-still-claimable)
 - [Where Cosmic Duality sits](#where-cosmic-duality-sits)
 - [What is actually verified](#what-is-actually-verified)
 - [The real blocker: only 4 of 7 tokens exist in the data](#the-real-blocker-only-4-of-7-tokens-exist-in-the-data)
 - [Why the circulating "solution" is fake](#why-the-circulating-solution-is-fake)
+- [A definitive oracle (privkey → address)](#a-definitive-oracle-privkey--address)
 - [Searches performed (all negative, all grounded)](#searches-performed-all-negative-all-grounded)
 - [The intended construction (architect speech)](#the-intended-construction-architect-speech)
 - [Open leads for future solvers](#open-leads-for-future-solvers)
@@ -30,8 +32,29 @@ python3 analysis/scripts/salphaseion_segments.py   # full stream segmentation
 python3 analysis/scripts/debunk_fake_solution.py   # debunk the circulating "solution"
 python3 analysis/scripts/attack_blobs.py           # grounded key search   (negative)
 python3 analysis/scripts/combo_attack.py           # 30k+ combo-method scan (negative)
+python3 analysis/scripts/grounded_attack.py        # instruction-token reading (negative)
 python3 analysis/scripts/matrix_analysis.py        # puzzle.png matrix numbers
+python3 analysis/scripts/btc_oracle.py             # definitive privkey->address oracle
 ```
+
+## Is the prize still claimable?
+
+**Yes.** The prize address
+[`1GSMG1JC9wtdSwfwApgj2xcmJPAwx7prBe`](https://mempool.space/address/1GSMG1JC9wtdSwfwApgj2xcmJPAwx7prBe)
+still held **≈ 1.256 BTC** (125,634,510 sat) at the time of writing — so the
+puzzle is genuinely unclaimed. The many recent transactions on it are tiny
+**dust spam**, not a payout.
+
+The 2025–2026 "SOLVED" posts (upstream issues **#69**, **#80**, …) do **not**
+move the prize and were rejected by maintainers: signing a message from, or
+sending dust to, the *Half* / *Better Half* wallets
+(`1JG648yaB7Wp2dpUfcZoRSD4q35oq47vCu`,
+`145ZQ9siLrsXBKf465wjdyQYAP5dRwhRhQ`) is not proof of the private key.
+Solving means **deriving the private key to the prize address** by decrypting
+Cosmic Duality — which no one has publicly done.
+
+> This is also why we can validate a candidate decryption *objectively* — see
+> [the oracle below](#a-definitive-oracle-privkey--address).
 
 ## Where Cosmic Duality sits
 
@@ -168,6 +191,26 @@ Both XOR seven SHA-256 token hashes, both "validate" only via PKCS#7 padding,
 both yield random bytes — yet produce **different** keys. If either were the
 real route, the tokens would be forced, not interchangeable.
 
+## A definitive oracle (privkey → address)
+
+[`scripts/btc_oracle.py`](scripts/btc_oracle.py) replaces fuzzy "looks like a
+solution" tests (padding, entropy) with the only validation that actually
+matters: **does a candidate decryption yield the private key to a known GSMG
+address?** It is a dependency-free secp256k1 + base58check implementation
+(RIPEMD-160 via `pycryptodome`) that:
+
+- self-tests against the textbook vector (`priv = 1` →
+  `1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH` / `1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm`);
+- given any plaintext, scans every 32-byte window (and `sha256(plaintext)`) as a
+  raw private key and compares the derived P2PKH addresses (compressed +
+  uncompressed) against the targets
+  `1GSMG1JC9wtdSwfwApgj2xcmJPAwx7prBe` (prize),
+  `1JG648yaB7Wp2dpUfcZoRSD4q35oq47vCu` (Half),
+  `145ZQ9siLrsXBKf465wjdyQYAP5dRwhRhQ` (Better Half).
+
+Use this — not padding — to confirm any future candidate. Every meaningful
+decryption produced by the scans below is run through it: **0 hits.**
+
 ## Searches performed (all negative, all grounded)
 
 ### Combination-method brute force
@@ -183,6 +226,30 @@ are roughly right and brute-forces the **combination method**, scoring the
 - each via MD5 *and* SHA-256 `EVP_BytesToKey`, AES-256 **CBC** and **ECB**.
 
 > **30,644 decryptions → 0 meaningful.**
+
+### Instruction-token reading
+
+[`scripts/grounded_attack.py`](scripts/grounded_attack.py) tries a different
+*premise*: that the four stream tokens are **instructions** (not literal
+passwords), so the real password is built from the 2023-hint's seven ingredients
+**in order** — `yellow, blue, primes, matrixsumlist, lastwordsbeforearchichoice,
+yinyang, thepassword` — each resolved to its real value:
+
+- `yellow`/`blue` → the matrix counts **9 / 15** (or the words);
+- `primes` → `2,3,5,7`;
+- `matrixsumlist` → the literal **row/col sum-list digit strings** from `puzzle.png`;
+- `lastwordsbeforearchichoice` → the architect monologue's closing words
+  *"…i really hope you're **the one** ciao bella o"* (this is where issue #69's
+  guessed `theone` actually comes from);
+- `yinyang` → the word (the matrix is 86 white / 86 black — balanced);
+- `thepassword` → `thepassword` / `thispassword`.
+
+It runs both known construction families (ordered concatenation as the OpenSSL
+password; XOR of the seven SHA-256 ingredient digests → key) through MD5/SHA-256
+`EVP_BytesToKey` and CBC, and validates every meaningful candidate with
+[`btc_oracle.py`](scripts/btc_oracle.py).
+
+> **18,144 decryptions → 0 meaningful, 0 oracle hits.**
 
 ### Single-key / grounded-key search
 
@@ -240,6 +307,8 @@ tried and produced nothing — they remain open at the multi-layer level):
 4. **Fold the matrix numbers / prime structure** into the routing rather than
    into a flat password.
 5. **Ignore anything derived from `4f7a1e…`** — it is noise by construction.
+6. **Validate with [`btc_oracle.py`](scripts/btc_oracle.py), not padding.** Any
+   real candidate must derive the prize private key — check it objectively.
 
 ## File map
 
@@ -255,5 +324,7 @@ analysis/
     ├── debunk_fake_solution.py       # reproduce + debunk the circulating "solution"
     ├── attack_blobs.py               # grounded, meaningfulness-scored key search
     ├── combo_attack.py               # 30k+ combination-method scan over the 7 tokens
-    └── matrix_analysis.py            # 14x14 puzzle.png matrix: counts, sums, spiral bits
+    ├── grounded_attack.py            # instruction-token reading (hint ingredients in order)
+    ├── matrix_analysis.py            # 14x14 puzzle.png matrix: counts, sums, spiral bits
+    └── btc_oracle.py                 # definitive privkey->address oracle (secp256k1)
 ```
