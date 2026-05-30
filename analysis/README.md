@@ -37,6 +37,29 @@ python3 analysis/scripts/combo_attack.py           # 30k+ combination-method sca
 
 Inline plaintext in the same stream: **"our first hint is your last command"**.
 
+### The stream only pins down 4 tokens — this is the real blocker
+
+`scripts/salphaseion_segments.py` segments the **entire** 1075-token stream on
+the `z` separators and decodes each segment with its correct alphabet:
+
+```
+seg0 [0:765]   AB-binary -> 'matrixsumlist'      (only the 104-bit a/b run decodes;
+                                                   the surrounding c..i tokens are noise)
+seg1 [766:829] decimal   -> 'lastwordsbeforearchichoice'
+seg2 [830:859] decimal   -> 'thispassword'
+seg3 [860:958] free-text -> "shabe f our first hint is your last command" + base64(inner blob, 1st half)
+seg4 [959:..]  AB-binary -> 'enter'  + base64(inner blob, 2nd half) + tail "...ans too"
+```
+
+So the stream **deterministically** yields exactly **four** tokens
+(`matrixsumlist`, `enter`, `lastwordsbeforearchichoice`, `thispassword`) plus
+**two free-text phrases** (`our first hint is your last command`, `…ans too`).
+**p5/p6/p7 are not pinned by the data.** That is precisely why every public
+"solution" invents different tokens for them (jackdevs66 →
+`yourlastcommand`/`secondanswer`; issue #69 → `sha256`/`theone`) and gets a
+different, padding-only-validated master key. Recovering the *intended* p5–p7
+(or the routing that makes them unnecessary) is the actual unsolved step.
+
 ### The two real OpenSSL `Salted__` ciphertexts
 
 | blob | file | ciphertext | salt |
@@ -170,5 +193,6 @@ analysis/
     ├── debunk_fake_solution.py       # reproduce + debunk the circulating "solution"
     ├── attack_blobs.py               # systematic, meaningfulness-scored key search
     ├── combo_attack.py               # 30k+ combination-method scan over the 7 tokens
+    ├── salphaseion_segments.py       # full stream segmentation: only 4 tokens are pinned
     └── matrix_analysis.py            # 14x14 matrix: counts, sums, yellow/blue bits
 ```
