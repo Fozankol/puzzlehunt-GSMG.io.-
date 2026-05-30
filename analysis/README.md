@@ -80,22 +80,51 @@ of a window, so "reproducing" a vanity prefix is expected and meaningless.)
 A maintainer on #82 bluntly called the thread *"AI slop"* — consistent with
 this analysis.
 
-## Open, grounded leads (not yet tried to exhaustion)
+## The matrix (`puzzle.png`) — concrete numbers
 
-These are the directions worth real effort, all anchored to **real** hints
-rather than the fake artifact:
+`scripts/matrix_analysis.py` works the "go back to the first puzzle piece" /
+"matrix sumlist" / "yellow & blue have a number" hints deterministically:
 
-1. **Quantify "yellow has a number and so does blue"** (2020-01-14 "Roses are
-   White but often Red" hint + Phase-0 colour mapping) and fold those numbers
-   into a password with the 2023-hint ingredients.
-2. **`matrixsumlist` literally**: the puzzle image is a grid; compute row/column
-   sums of the colour matrix and test those numbers/orderings as key material.
-3. **The "prime part"** (confirmed important by the creator, 2021-03-01 &
-   2023-01-09): identify which numeric component is prime and how it indexes.
-4. **SalPhaseIon inner 80-byte blob** is the smaller, fully-known target — if
-   its true password is recoverable it likely yields the Cosmic Duality key.
-5. Re-derive everything **independently of `4f7a1e…`** — treat any result that
-   depends on that artifact as invalid.
+* 14x14 grid, colour counts: **white=86, black=86, blue=15, yellow=9**.
+* yellow/blue cells in the Phase-0 counter-clockwise spiral (24 cells):
+  `bbbbybbbyybbbbybbyybyyby` -> as bits `16203154` (y=0,b=1) or `574061` (y=1,b=0).
+* Row/col **sum lists** for colour values white=0,black=1,blue=2,yellow=3:
+  rows `[10,12,9,8,10,12,9,8,11,13,10,9,11,11]`,
+  cols `[9,12,11,11,9,9,9,10,8,11,14,9,9,12]` (prime-based assignments also tabulated).
+* No colour assignment over `{0,1,2,3,5,7}` makes the sum list all-prime, so a
+  naive "prime sum" reading does not hold — the prime role is more subtle.
+
+## The real structural constraint (Phase 3.2 "architect" speech)
+
+> "…reinserting the **prime basics**, after which you will be required to select
+> from over **twenty-three ciphers**, **sixteen encryptions** and/or **seven
+> intertwined passwords** to find the actual private key. note that also
+> **brute forcing might be required**."
+
+So Cosmic Duality is not a single password guess: it is a multi-layer
+construction (~16 nested encryptions / 7 intertwined passwords) and the author
+explicitly says brute force is part of it. This is why naive single-password
+attempts (`attack_blobs.py`) correctly return nothing.
+
+## Open, grounded leads (negative so far, but correctly grounded)
+
+Directions anchored to **real** hints (not the fake artifact). All single-layer
+variants below were tried and produced no meaningful output:
+
+1. **"yellow/blue have a number"** folded into passwords with the 2023-hint
+   ingredients (`yellow`,`blue`,`primes`,`yinyang`,`thepassword`,…): tested as
+   words, counts (9/15) and the 24-bit spiral numbers — no hit.
+2. **`matrixsumlist` as literal row/col sums** (the sequences above as key
+   material): no hit.
+3. **Nested-layer hypothesis** (decrypt -> next `Salted__` layer): no candidate
+   password yields a nested OpenSSL header on either blob.
+4. **SalPhaseIon inner 80-byte blob** — the smaller fully-known target; its true
+   password is still unknown.
+5. Anything depending on `4f7a1e…` is invalid by construction (see debunk).
+
+The remaining real work is reconstructing the **intended multi-layer routing**
+(7 intertwined passwords / 16 encryptions), likely combined with a structured
+brute force — not more single-password guessing.
 
 ## Files
 
@@ -108,5 +137,6 @@ analysis/
 └── scripts/
     ├── salphaseion_decode.py         # reproduce the 4 verified text decodes
     ├── debunk_fake_solution.py       # reproduce + debunk the circulating "solution"
-    └── attack_blobs.py               # systematic, meaningfulness-scored key search
+    ├── attack_blobs.py               # systematic, meaningfulness-scored key search
+    └── matrix_analysis.py            # 14x14 matrix: counts, sums, yellow/blue bits
 ```
