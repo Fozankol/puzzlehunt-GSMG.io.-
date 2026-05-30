@@ -70,6 +70,21 @@ different, padding-only-validated master key. Recovering the *intended* p5–p7
 Both base64-decode to `Salted__` + 8-byte salt + AES block-aligned ciphertext.
 Both remain **undecrypted to meaningful output**.
 
+### Primary-source provenance (verified against the archived original page)
+
+The SalPhaseIon page (`gsmg.io/89727c59…f6a32`) is preserved in the Wayback
+Machine (e.g. snapshot `20230601222752`). Fetching the original HTML confirms:
+
+* The page is just two plain `<textarea>` elements — the symbol stream and the
+  Cosmic Duality base64 — with **no CSS colours, spans, comments, or any hidden
+  HTML channel**. Our `data/` files match the original **byte-for-byte**
+  (Cosmic = 1792 base64 chars; stream = 1075 tokens; inner blob embedded).
+* Therefore the **colour-coded** SalPhaseIon grid seen in
+  `salphaseion-assets/SalPhaselonCosmicDuality.png` is a community *annotation*,
+  **not** original puzzle data — the canonical symbols are single-colour text.
+  (The "yellow/blue have a number" hint points at the Phase-0 `puzzle.png`
+  matrix — *"go back to the first puzzle piece"* — not at this grid.)
+
 ### Official 2023-02-23 hint (decoded reverse-binary)
 
 ```
