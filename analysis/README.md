@@ -29,10 +29,12 @@ guessed tokens or on the fake artifact.
 pip install pycryptodome
 python3 analysis/scripts/salphaseion_decode.py     # the 4 verified text decodes
 python3 analysis/scripts/salphaseion_segments.py   # full stream segmentation
+python3 analysis/scripts/stream_structure.py       # shabef-wrapped layout + inner-blob provenance
 python3 analysis/scripts/debunk_fake_solution.py   # debunk the circulating "solution"
 python3 analysis/scripts/attack_blobs.py           # grounded key search   (negative)
 python3 analysis/scripts/combo_attack.py           # 30k+ combo-method scan (negative)
 python3 analysis/scripts/grounded_attack.py        # instruction-token reading (negative)
+python3 analysis/scripts/inner_blob_attack.py      # inner 80-byte blob attack (negative)
 python3 analysis/scripts/matrix_analysis.py        # puzzle.png matrix numbers
 python3 analysis/scripts/btc_oracle.py             # definitive privkey->address oracle
 ```
@@ -149,6 +151,27 @@ So the stream **deterministically** yields exactly **four** tokens
 **two free-text phrases**. **Tokens p5/p6/p7 are not encoded anywhere in the
 data.**
 
+### Exact free-text layout (and inner-blob provenance)
+
+[`scripts/stream_structure.py`](scripts/stream_structure.py) pins the free-text
+region precisely. The inner AES blob is **bracketed by a repeated `shabef`
+marker** and the two phrases, with the `enter` bit-run literally **spliced into
+the middle of the base64**:
+
+```
+<shabef> our first hint is your last command  <INNER BLOB base64>  <shabef> ans too
+```
+
+Stripping that spliced `enter` run from the raw stream and taking the base64
+charset run **reconstructs `data/salphaseion_inner_blob.txt` byte-for-byte**
+(128 b64 chars → 96 bytes) — tight provenance for the inner blob.
+
+The phrases are clearly *instructions*, not encoded tokens. The most natural
+reading — "your last command" = the page hash you computed to reach SalPhaseIon
+(`89727c59…f6a32`) — plus the other 64-hex hashes that appear in the hints, were
+tested as passwords against **both** blobs (EVP md5/sha256, raw-hex key,
+CBC/ECB): best printable ratio ≈ 0.47, **no meaningful decrypt.**
+
 This single fact explains the whole stalemate: every public "solution" has to
 *invent* p5–p7, and they all invent different ones (see below). Recovering the
 **intended** p5–p7 — or the routing that makes them unnecessary — is the actual
@@ -251,6 +274,21 @@ password; XOR of the seven SHA-256 ingredient digests → key) through MD5/SHA-2
 
 > **18,144 decryptions → 0 meaningful, 0 oracle hits.**
 
+### The inner 80-byte blob (smallest fully-known target)
+
+[`scripts/inner_blob_attack.py`](scripts/inner_blob_attack.py) attacks the
+80-byte SalPhaseIon inner blob (salt `3ab585348552415d`) — if it decrypted to
+text, that text would be the next-step material (a password, the Cosmic key, or
+the missing p5–p7). It tries the four verified tokens (all orderings ×
+separators), the architect/2023-hint words and matrix sum strings, and XOR of
+their SHA-256 digests, each via EVP (MD5/SHA-256, key 32/24/16, CBC/ECB) **and**
+non-EVP raw-key derivations (`sha256(pw)`, double-sha256, zero-padded, four IV
+conventions). Output ranked by printability, every candidate run through the
+oracle.
+
+> **~15,500 decryptions → best printable ratio 0.49 (noise), 0 oracle hits.**
+> The inner blob does not open with any public token material.
+
 ### Single-key / grounded-key search
 
 [`scripts/attack_blobs.py`](scripts/attack_blobs.py) — meaningfulness-scored
@@ -302,9 +340,7 @@ tried and produced nothing — they remain open at the multi-layer level):
 2. **Model the nested layering.** Treat decryption output as the next
    `Salted__` layer's input and search layer sequencing, rather than expecting
    plaintext in one shot.
-3. **Attack the inner 80-byte blob first** — it is the smallest fully-known
-   target; its password would be concrete next-step material.
-4. **Fold the matrix numbers / prime structure** into the routing rather than
+3. **Fold the matrix numbers / prime structure** into the routing rather than
    into a flat password.
 5. **Ignore anything derived from `4f7a1e…`** — it is noise by construction.
 6. **Validate with [`btc_oracle.py`](scripts/btc_oracle.py), not padding.** Any
@@ -321,10 +357,12 @@ analysis/
 └── scripts/
     ├── salphaseion_decode.py         # the 4 verified text decodes
     ├── salphaseion_segments.py       # full stream segmentation: only 4 tokens are pinned
+    ├── stream_structure.py           # shabef-wrapped layout; reconstructs inner blob from stream
     ├── debunk_fake_solution.py       # reproduce + debunk the circulating "solution"
     ├── attack_blobs.py               # grounded, meaningfulness-scored key search
     ├── combo_attack.py               # 30k+ combination-method scan over the 7 tokens
     ├── grounded_attack.py            # instruction-token reading (hint ingredients in order)
+    ├── inner_blob_attack.py          # inner 80-byte blob: EVP + raw-key derivations (negative)
     ├── matrix_analysis.py            # 14x14 puzzle.png matrix: counts, sums, spiral bits
     └── btc_oracle.py                 # definitive privkey->address oracle (secp256k1)
 ```
