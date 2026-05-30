@@ -8,6 +8,7 @@ pip install pycryptodome
 python3 analysis/scripts/salphaseion_decode.py     # verified text decodes
 python3 analysis/scripts/debunk_fake_solution.py   # debunk circulating "solution"
 python3 analysis/scripts/attack_blobs.py           # systematic (negative) key search
+python3 analysis/scripts/combo_attack.py           # 30k+ combination-method scan (negative)
 ```
 
 ## TL;DR
@@ -80,6 +81,36 @@ of a window, so "reproducing" a vanity prefix is expected and meaningless.)
 A maintainer on #82 bluntly called the thread *"AI slop"* — consistent with
 this analysis.
 
+### The competing "solutions" disagree with each other
+
+Independent confirmation that these are guesses, not solutions: the public
+"solutions" cannot even agree on the 7 tokens or the resulting key.
+
+| source | p6 / p7 tokens | claimed "master key" |
+|--------|----------------|----------------------|
+| jackdevs66 `GSMG5_CDuality` | `yourlastcommand` / `secondanswer` | `a795de11…e50735` |
+| upstream issue **#69** | `sha256` / `theone` | `818af53d…bb402` |
+
+Both XOR seven SHA-256 token hashes, both "validate" only via PKCS#7 padding,
+both yield random bytes — yet produce **different** keys. If either were the
+real route, the tokens would be forced, not interchangeable.
+
+## Combination-method scan (this is the new, correctly-grounded search)
+
+`scripts/combo_attack.py` accepts the premise that the 7 tokens are roughly
+right and instead brute-forces the **combination method**, scoring the
+*plaintext* for meaningfulness (entropy < 5, printable > 0.85, nested
+`Salted__`, or a WIF-like base58 key) rather than padding:
+
+* all `7!` token **orderings** × 6 separators, used as the OpenSSL password;
+* **XOR** of the SHA-256 digests, used both as a hex password and as a raw key;
+* **chained** `sha256(k + token)` derivations;
+* each run through MD5 *and* SHA-256 `EVP_BytesToKey`, AES-256 **CBC** and **ECB**.
+
+Result: **30,644 decryptions, 0 meaningful.** So with this token set, no
+straightforward routing works — meaning either p5/p6/p7 are still wrong, or the
+real construction is the multi-layer one described next.
+
 ## The matrix (`puzzle.png`) — concrete numbers
 
 `scripts/matrix_analysis.py` works the "go back to the first puzzle piece" /
@@ -138,5 +169,6 @@ analysis/
     ├── salphaseion_decode.py         # reproduce the 4 verified text decodes
     ├── debunk_fake_solution.py       # reproduce + debunk the circulating "solution"
     ├── attack_blobs.py               # systematic, meaningfulness-scored key search
+    ├── combo_attack.py               # 30k+ combination-method scan over the 7 tokens
     └── matrix_analysis.py            # 14x14 matrix: counts, sums, yellow/blue bits
 ```
