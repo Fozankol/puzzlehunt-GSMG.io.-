@@ -29,6 +29,7 @@ guessed tokens or on the fake artifact.
 pip install pycryptodome
 python3 analysis/scripts/salphaseion_decode.py     # the 4 verified text decodes
 python3 analysis/scripts/salphaseion_segments.py   # full stream segmentation
+python3 analysis/scripts/stream_structure.py       # shabef-wrapped layout + inner-blob provenance
 python3 analysis/scripts/debunk_fake_solution.py   # debunk the circulating "solution"
 python3 analysis/scripts/attack_blobs.py           # grounded key search   (negative)
 python3 analysis/scripts/combo_attack.py           # 30k+ combo-method scan (negative)
@@ -149,6 +150,27 @@ So the stream **deterministically** yields exactly **four** tokens
 (`matrixsumlist`, `enter`, `lastwordsbeforearchichoice`, `thispassword`) plus
 **two free-text phrases**. **Tokens p5/p6/p7 are not encoded anywhere in the
 data.**
+
+### Exact free-text layout (and inner-blob provenance)
+
+[`scripts/stream_structure.py`](scripts/stream_structure.py) pins the free-text
+region precisely. The inner AES blob is **bracketed by a repeated `shabef`
+marker** and the two phrases, with the `enter` bit-run literally **spliced into
+the middle of the base64**:
+
+```
+<shabef> our first hint is your last command  <INNER BLOB base64>  <shabef> ans too
+```
+
+Stripping that spliced `enter` run from the raw stream and taking the base64
+charset run **reconstructs `data/salphaseion_inner_blob.txt` byte-for-byte**
+(128 b64 chars → 96 bytes) — tight provenance for the inner blob.
+
+The phrases are clearly *instructions*, not encoded tokens. The most natural
+reading — "your last command" = the page hash you computed to reach SalPhaseIon
+(`89727c59…f6a32`) — plus the other 64-hex hashes that appear in the hints, were
+tested as passwords against **both** blobs (EVP md5/sha256, raw-hex key,
+CBC/ECB): best printable ratio ≈ 0.47, **no meaningful decrypt.**
 
 This single fact explains the whole stalemate: every public "solution" has to
 *invent* p5–p7, and they all invent different ones (see below). Recovering the
@@ -335,6 +357,7 @@ analysis/
 └── scripts/
     ├── salphaseion_decode.py         # the 4 verified text decodes
     ├── salphaseion_segments.py       # full stream segmentation: only 4 tokens are pinned
+    ├── stream_structure.py           # shabef-wrapped layout; reconstructs inner blob from stream
     ├── debunk_fake_solution.py       # reproduce + debunk the circulating "solution"
     ├── attack_blobs.py               # grounded, meaningfulness-scored key search
     ├── combo_attack.py               # 30k+ combination-method scan over the 7 tokens
